@@ -35,8 +35,8 @@ is_multiple_of_55 = is_multiple_of_generator.(55)
 
 # Let's assemble is_even, greater_than_100, and is_multiple_of_3
 # into a single 'compound' predicate.
-compound_predicate = ->(n) do
-  is_even(n) && greater_than_100(n) && is_multiple_of_55(n)
+compound_predicate_1 = ->(n) do
+  is_even.(n) && greater_than_100.(n) && is_multiple_of_55.(n)
 end
 
 # Ruby's super amazing Enumerable module's methods enables us
@@ -45,22 +45,25 @@ end
 
 my_predicates = [is_even, greater_than_100, is_multiple_of_55]
 
-my_all_predicate_1 = ->(n) do
+compound_predicate_2 = ->(n) do
   my_predicates.all? { |p| p.(n) }
 end
 
+# Above, we hard coded the array of predicates in the function.
+# We can make it even more general by parameterizing the predicates:
 
-# Are you seeing a pattern here?  We can create a lambda that
-# returns a compound predicate:
 all = ->(predicates) do
   ->(n) { predicates.all? { |p| p.(n) } }
 end
 
-my_all_predicate_2 = all.(my_predicates)
+compound_predicate_3 = all.(my_predicates)
 
 # Let's (somewhat) verify that the 2 implementations behave the same:
 (0..10_000).each do |n|
-  raise "Mismatch on #{n}" if my_all_predicate_1.(n) != my_all_predicate_2.(n)
+  r1 =  compound_predicate_1.(n)
+  r2 =  compound_predicate_2.(n)
+  r3 =  compound_predicate_3.(n)
+  raise "Mismatch on #{n}" if r1 != r2 || r1 != r3
 end
 
 # Now, let's print out the numbers for which the compound predicate is true,

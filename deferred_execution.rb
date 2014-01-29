@@ -10,10 +10,7 @@ actions = [
 # Then let's write a method that will call them:
 
 def run_them(actions)
-  actions.each { |action| action.call }  # or action.call
-
-  # or, use the >= 1.9 .() operator::
-  # actions.each { |action| action.() }  # or action.call
+  actions.each { |action| action.() }  # or action.call
 
   # or, more simply, given that the lambdas take no arguments::
   # actions.each(&:call)

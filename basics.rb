@@ -1,34 +1,83 @@
 # Raw Notes for Ruby Lambdas presentation
 # Copyright 2014, Keith R. Bennett
 
+# ----
+
+"
+Our quest and our mission as software developers is to tame complexity, to simplify ruthlessly.
+"
+
+"
+OOD is powerful for organizing behavior, but without lambdas' code-as-data flexibility,
+fails to reduce solutions to their simplest form.
+"
+
+"
+Lambda use is a complement to OOD, not a substitute for it.
+"
+
+# ----
+
+
+# ----
+
+"
+I am not a functional programming expert; the material I present today
+is based on my very limited experience with Erlang and Clojure,
+and more recent exploration in Ruby.
+"
+
+# ----
+
+"
+A lambda is a free floating function; it does not belong to, or
+is even associated with, an object or class.
+"
+
+# ----
+
 # A lambda that takes no parameters, does nothing, and returns nothing:
 
-# >= 1.9 notation:
-->() {}
--> {}
--> do end
-
 # Original pre-1.9 notation:
-lambda {}
-lambda do end
 
-----
+lambda {}
+lambda do
+end
+
+# With parameters:
+lambda { |param1, param2| }
+lambda do |param1, param2|
+end
+
+
+# >= 1.9 notation:
+->{}       # if no params
+-> do end  # if no params
+
+# With parameters:
+->(params) {}
+->(params) do
+end
+
+
+
+# ----
 
 # Calling a lambda:
-my_lambda.()    # >= 1.9
+my_lambda = ->{}
 my_lambda.call  # all versions
 my_lambda[]     # all versions
+my_lambda.()    # >= 1.9
 
 
-----
+# ----
 
 # We normally assign lambdas to variables...
 nothing_doer = -> {}
 
 # and/or pass them to methods...
-ConditionalAction.new(condition, action)
-ConditionalAction.new(->{ true }, action)
-
+# add_action(-> {})
+# add_action(nothing_doer)
 
 # but nothing stops us from calling them directly:
 ->{}.call
@@ -36,7 +85,11 @@ ConditionalAction.new(->{ true }, action)
 lambda {}.call
 lambda {}.()
 
-----
+# This approach would usually not make sense, but
+# could be used, for example, to avoid adding
+# any constant or variable names to the current binding.
+
+# ----
 
 # Here's a lambda that always returns true:
 -> { true }
@@ -47,8 +100,9 @@ always_true =  -> { true }
 # ...and call it:
 always_true.()   # => true
 always_true.call # => true
+always_true[]    # => true
 
-----
+# ----
 
 # Now let's define a lambda that will take a parameter...
 
@@ -61,7 +115,7 @@ is_even = ->(n) { n % 2 == 0 }
 is_even.(10) # => true
 is_even.(11) # => false
 
-----
+# ----
 
 # A lambda that returns the number doubled:
 double = ->(n) { 2 * n }
@@ -75,7 +129,9 @@ quadruple = ->(n) { 4 * n }
 # by creating a function that provides the logic and returns
 # a lambda prefilled with the multiplier.
 
-----
+# ----
+
+# Pattern: Partial Application
 
 # Using partial application to fill variables into a lambda:
 
@@ -83,26 +139,51 @@ quadruple = ->(n) { 4 * n }
 # will return the specified multiple of that number.
 
 # Using a method that returns a lambda:
-def multiplier(factor)
+def fn_multiply_by(factor)
   ->(n) { factor * n }
 end
 
-tripler = multiplier(3) # => #<Proc:0x007f9c1c11aa70@(irb):13 (lambda)>
+tripler = fn_multiply_by(3) # => #<Proc:0x007f9c1c11aa70@(irb):13 (lambda)>
 tripler.(123)  # => 369
 
 # ...or a lambda that returns a lambda:
 
-multiplier = ->(factor) do
+fn_multiply_by = ->(factor) do
   ->(n) { factor * n }
 end
 
-tripler = multiplier.(3) # => #<Proc:0x007f9c1c11aa70@(irb):13 (lambda)>
+tripler = fn_multiply_by.(3) # => #<Proc:0x007f9c1c11aa70@(irb):13 (lambda)>
 tripler.(123)  # => 369
 
-quadrupler = multiplier.(4) # => #<Proc:0x007f9c1c1056c0@(irb):18 (lambda)>
+quadrupler = fn_multiply_by.(4) # => #<Proc:0x007f9c1c1056c0@(irb):18 (lambda)>
 quadrupler.(8)  # => 32
 
-----
+# ----
+
+# Pattern: Partial Application
+# Let's go back to the is_even.
+
+# How would you generalize it so that the logic is in a place
+# that can be shared by calculators of multiples of any number?
+
+fn_multiple_of = ->(m) { ->(n) { n % m == 0 } }
+is_even = fn_multiple_of.(2)
+is_even.(10) # => true
+is_even.(11) # => false
+
+# ----
+
+# Pattern: Currying
+
+# Currying is like partial application, but works a little differently.
+# Ruby's Proc class has a curry method that can be applied:
+
+multiply_2_numbers = ->(x, y) { x * y }
+tripler = multiply_2_numbers.curry[3]
+tripler.(7) # => 21
+
+
+# ----
 
 # Separating Data from Behavior & Deferred Execution
 
@@ -113,10 +194,12 @@ quadrupler.(8)  # => 32
 # Its 'print' method is called at fixed intervals by other code.
 # In order to know what to print, you pass it a lambda:
 
-text_generator = ->() { "%9.3f   %9.3f" % [time_elapsed, time_to_go] }
-status_updater = TextModeStatusUpdater.new(text_generator, $stderr)
+# text_generator = ->() { "%9.3f   %9.3f" % [time_elapsed, time_to_go] }
+# status_updater = TextModeStatusUpdater.new(text_generator, $stderr)
 
-----
+# ----
+
+# Pattern: Action / Runtime Context Split
 
 # Another example, this one separating the exit condition (predicate)
 # from the mechanics with which it is used:
@@ -133,9 +216,11 @@ def retry_until_true_or_timeout(
 end
 
 server_response_succeeded = -> { } # condition code goes here
-success = retry_until_true_or_timeout(server_response_suceeded, 0.2, 30)
+success = retry_until_true_or_timeout(server_response_succeeded, 0.2, 30)
 
-----
+# ----
+
+# Patterns: Repeated Use Within Function, Nested Function
 
 # Performing the same operation multiple times in a method:
 
@@ -143,7 +228,7 @@ def setup
 
   load_string = ->(filespec) do
     # ....
-    the_string
+    # returns the loaded and processed string
   end
 
   @red_string    = load_string.('red.txt')
@@ -151,33 +236,40 @@ def setup
   @yellow_string = load_string.('yellow.txt')
 end
 
-----
+# ----
+
+# Pattern: Command
 
 # Your class may need configurable behaviors.
 # They could be in the form of a hash
 # with symbols as keys and lambdas as values:
 
-class C
-  attr_accessor :responses
+event_handlers = {
+    blue_event:   ->(event) { do_something_with(event) },
+    red_event:    ->(event) { do_something_else_with(event) },
+    yellow_event: ->(event) { do_something_different_with(event) },
+}
 
-  def initialize(responses); @responses = responses; end
+class C
+  attr_accessor :event_handlers
+
+  # @param responses a hash containing event type symbols
+  #                  and their corresponding actions
+  def initialize(event_handlers)
+    event_handlers = event_handlers
+  end
 
   def run
-    loop do
-      event = event_queue.read
-      responses[event.code].(event)
-    end
+    #loop do
+    #  event = event_queue.read
+    #  responses[event.code].(event)
+    #end
   end
 end
 
-event_handlers = {
-    blue_event:      ->(event) {   }, #  <- code goes here
-    red_event:       ->(event) {   }, #  <- code goes here
-    yellow_event:    ->(event) {   }, #  <- code goes here
-}
 c = C.new(event_handlers).run
 
-----
+# ----
 
 # Lambdas are Closures:
 
@@ -197,6 +289,12 @@ puts n
 
 # ----
 
+# Using Lambdas with RSpec
+
+# (see lambda_expectations_spec.rb)
+
+# ----
+
 # Using Lambdas to Simplify RSpec Code
 
 test = ->(method_name, expected_value) do
@@ -209,12 +307,6 @@ test.(:foo, 23032)
 test.(:bar, 2)
 test.(:baz, 79090)
 
-
-# ----
-
-# Using Lambdas with RSpec
-
-# (see lambda_expectations_spec.rb)
 
 # ----
 
@@ -235,7 +327,7 @@ test.(:baz, 79090)
 
 # Similarly, we can create a lambda that will raise
 # a number to the n'th power:
-power_raiser = ->(power) do
+fn_power_raiser = ->(power) do
   ->(n) { n ** power }
 end
 
@@ -243,19 +335,21 @@ end
 # (n)                  signature
 # { n ** power }       body
 # ->(n) { n ** power } complete lambda that is returned
-# the entire power_raiser method
+# the entire fn_power_raiser method
 
 # ----
 
-squarer = power_raiser.(2)
+squarer = fn_power_raiser.(2)
 squarer.(4)  # => 16
 
-cuber = power_raiser.(3)
+cuber = fn_power_raiser.(3)
 cuber.(3)  # => 27
 
 tripler = ->(n) { 3 * n }
 
 # ----
+
+# Pattern: Transform Chain
 
 # Creating a Transform Chain Using Enumerables
 
@@ -265,25 +359,14 @@ my_transforms = [tripler, squarer]
 
 # Returns a lambda that takes an object as input and
 # applies the specified transforms to it, returning the result.
-compound_transform = ->(transforms) do
+fn_compound_transform = ->(transforms) do
   ->(x) do
     transforms.inject(x) { |t, accumulator| accumulator.(t) }
   end
 end
 
-tripler_and_squarer = compound_transform.(my_transforms)
+tripler_and_squarer = fn_compound_transform.(my_transforms)
 tripler_and_squarer.(4)  # => 144
-
-# ----
-
-
-# Currying is like partial application, but works a little differently.
-# Ruby's Proc class has a curry method that can be applied:
-
-multiply_2_numbers = ->(x, y) { x * y }
-tripler = multiply_2_numbers.curry[3]
-tripler.(7) # => 21
-
 
 # ----
 
@@ -292,27 +375,29 @@ tripler.(7) # => 21
 # If you have a lambda, you can make it look like a code block
 # to the called function using '&':
 
-def foo
-  yield
-end
-
-proclaimer = -> { puts 'I am a lambda' }
-foo(&proclaimer)
-# I am a lambda
-
-# ----
-
-# Lambdas and Logging
-
 # Some logging frameworks support the passing of code blocks so
 # that potentially expensive message building can be done only when
 # that message will be written:
 
-logger.debug { some_really_expensive_string_building }
+class MyLogger
+  def info(object = nil)
+    if block_given?
+      puts("Code block: #{yield}")
+    else
+      puts object
+    end
+  end
+end
 
-----
+MyLogger.new.info('I am a string')           # "I am a string"
+MyLogger.new.info { 'I am inside a block' }  # "Code block: I am inside a block"
 
-# Classes can be defined in a lambda, but not a method:
+proclaimer = -> { 'I am inside a lambda' }
+MyLogger.new.info(&proclaimer)               # "Code block: I am inside a lambda"
+
+# ----
+
+# Classes can be defined in a lambda, but cannot be defined in a method:
 
 -> { class C; end }.()
 # => nil
@@ -357,14 +442,16 @@ foo
 
 # Lambdas have strict argument checking; procs do not:
 
-->(a, b) {}.(1)
+two_arg_lambda = ->(a, b) {}
+two_arg_lambda.(1)
 # ArgumentError: wrong number of arguments (1 for 2)
 #  from (irb):15:in `block in irb_binding'
 #  from (irb):15:in `call'
 #  from (irb):15
 #  from /Users/kbennett/.rvm/rubies/ruby-1.9.3-p448/bin/irb:16:in `<main>'
 
-(proc { |a, b| }).(1)
+two_arg_proc = proc { |a, b| }
+two_arg_proc.(1)
 # nil
 
 # ----
